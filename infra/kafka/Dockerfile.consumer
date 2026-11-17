@@ -1,0 +1,22 @@
+FROM python:3.10-slim
+
+WORKDIR /opt/project
+
+RUN pip install --no-cache-dir \
+    "boto3>=1.34,<2" \
+    "confluent-kafka>=2.6,<3" \
+    "pydantic-settings>=2,<3" \
+    "python-dotenv>=1.0,<2" \
+    "pycountry>=26,<27" \
+    "requests>=2.31,<3"
+
+COPY configs /opt/project/configs
+COPY config /opt/project/config
+COPY ingestion /opt/project/ingestion
+COPY messaging /opt/project/messaging
+COPY scripts /opt/project/scripts
+COPY storage /opt/project/storage
+
+ENV PYTHONPATH=/opt/project
+
+CMD ["python", "scripts/consume_ripe_kafka_to_bronze.py"]

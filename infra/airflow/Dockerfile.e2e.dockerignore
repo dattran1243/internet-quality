@@ -1,0 +1,3 @@
+# Only requirements is copied. Docker always sends its selected Dockerfile/ignore file.
+**
+!requirements-e2e.txt

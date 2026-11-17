@@ -1,0 +1,117 @@
+# Local development only; credentials are required and no original volume is imported.
+name: viq-public
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your private environment}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your private environment}
+    ports:
+    - ${VIQ_BIND_ADDRESS:-127.0.0.1}:9000:9000
+    - ${VIQ_BIND_ADDRESS:-127.0.0.1}:9001:9001
+    volumes:
+    - minio_data:/data
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:9000/minio/health/live
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    restart: 'no'
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2024-11-21T17-21-54Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your private environment}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your private environment}
+      MINIO_BUCKET: ${MINIO_BUCKET:-telecom-data}
+    entrypoint:
+    - /bin/sh
+    - -c
+    - "set -e\n\necho \"Configuring MinIO...\"\n\nmc alias set local \\\n  http://minio:9000 \\\n  \"$${MINIO_ACCESS_KEY}\"\
+      \ \\\n  \"$${MINIO_SECRET_KEY}\"\n\necho \"Creating bucket if it does not exist...\"\n\nmc mb \\\n  --ignore-existing\
+      \ \\\n  \"local/$${MINIO_BUCKET}\"\n\necho \"MinIO initialization complete.\"\n"
+  spark:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    env_file:
+    - .env
+    environment:
+      MINIO_ENDPOINT: ${MINIO_INTERNAL_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your private environment}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your private environment}
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your private environment}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your private environment}
+      PYTHONPATH: /opt/project
+    volumes:
+    - .:/opt/project
+    working_dir: /opt/project
+    profiles:
+    - tools
+    entrypoint:
+    - /opt/spark/bin/spark-submit
+    command:
+    - --master
+    - local[*]
+    - scripts/run_silver.py
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-telecom}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-telecom}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in your private environment}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+    ports:
+    - ${VIQ_BIND_ADDRESS:-127.0.0.1}:8123:8123
+    - ${VIQ_BIND_ADDRESS:-127.0.0.1}:9002:9000
+    volumes:
+    - clickhouse_data:/var/lib/clickhouse
+    - ./infra/clickhouse/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - clickhouse-client --user "$${CLICKHOUSE_USER}" --password "$${CLICKHOUSE_PASSWORD}" --query 'SELECT 1' || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: 'no'
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    env_file:
+    - .env
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_HTTP_PORT: '8123'
+    ports:
+    - ${VIQ_BIND_ADDRESS:-127.0.0.1}:8000:8000
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: 'no'
+volumes:
+  minio_data: {}
+  clickhouse_data: null

@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "source": "ripe_atlas",
+    "measurement_id": 1009,
+    "requested_start_utc": "2026-09-12T00:00:00Z",
+    "requested_stop_utc": "2026-09-12T01:00:00Z",
+    "ingested_at_utc": "2026-09-12T01:01:00Z",
+    "record_count": 1,
+    "api_url": "https://atlas.ripe.net/api/v2/measurements/1009/results/",
+    "api_version": "v2"
+  },
+  "records": [{
+    "af": 4, "avg": 18.2, "dst_addr": "198.41.0.4",
+    "dst_name": "a.root-servers.net", "max": 19.1, "min": 17.4,
+    "msm_id": 1009, "msm_name": "Ping", "prb_id": 1,
+    "proto": "ICMP", "rcvd": 3, "sent": 3, "timestamp": 1789171200,
+    "result": [{"rtt": 17.4}, {"rtt": 18.1}, {"rtt": 19.1}]
+  }]
+}
+

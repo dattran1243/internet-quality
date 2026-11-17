@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIQ-Full | Big Data Probe Explorer</title>
+  <style>
+    :root {font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#eff5ff;background:#080e1d}
+    *{box-sizing:border-box}body{margin:0}
+    header{padding:26px clamp(20px,4vw,54px) 16px;background:linear-gradient(110deg,#0b2139,#101027)}
+    .eyebrow{font-size:11px;color:#60c7ff;font-weight:800;letter-spacing:2px}
+    h1{margin:8px 0;font-size:clamp(25px,3vw,42px);letter-spacing:-1px}
+    p{color:#a7b8d2;line-height:1.55;margin:8px 0}
+    a{color:#70caff;text-decoration:none}a:hover{text-decoration:underline}
+    main{padding:16px clamp(20px,4vw,54px) 32px;max-width:1700px;margin:auto}
+    .toolbar{display:grid;grid-template-columns:1fr 1.1fr 1.35fr 1.35fr auto;gap:10px;background:#10182b;border:1px solid #263550;border-radius:13px;padding:14px;align-items:end}
+    label{display:flex;flex-direction:column;gap:8px;color:#8fa9c8;text-transform:uppercase;font-size:10px;letter-spacing:1px;font-weight:700}
+    select,input,button{height:39px;background:#0d1426;color:#eef6ff;border:1px solid #344362;border-radius:7px;padding:0 10px;min-width:0;font:inherit;font-size:13px}
+    button{background:#40aef8;color:#06111e;border:0;font-weight:800;cursor:pointer;padding:0 20px}
+    button:hover{background:#6acaff}
+    .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}
+    .card{background:#10182b;border:1px solid #253550;border-radius:12px;padding:13px 16px}
+    .card .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#90a7ca}
+    .card strong{display:block;font-size:28px;margin-top:7px;font-variant-numeric:tabular-nums}
+    .panel{background:#10182b;border:1px solid #263550;padding:15px;border-radius:13px}
+    .paneltop{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .paneltop h2{font-size:17px;margin:0}
+    .switch{display:flex;align-items:center;flex-direction:row;gap:8px;text-transform:none;letter-spacing:0;font-size:12px}
+    .switch input{height:15px;width:15px}
+    #map{height:clamp(420px,65vh,820px);border-radius:9px;overflow:hidden}
+    #status{font-size:12px;color:#97accd;margin:0 0 12px}
+    #status.error{color:#ff8c93}
+    .legend{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:11px;color:#a4b4ce;margin-top:10px}
+    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+    .foot{font-size:11px;padding-top:12px}
+    @media(max-width:1050px){.toolbar{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:650px){.toolbar{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+  
+/* VIQ-PROBE-EXPLORER-UX-V3: readable details and stable individual markers */
+.viq-v3-marker {
+  appearance:none !important; -webkit-appearance:none !important;
+  display:block; width:16px !important; height:16px !important;
+  min-width:16px !important; min-height:16px !important;
+  padding:0 !important; margin:0 !important;
+  border:2px solid #fff !important; border-radius:50% !important;
+  background:var(--viq-probe-color,#ffd060) !important;
+  box-shadow:0 0 0 2px rgba(5,17,37,.78),0 2px 9px rgba(0,0,0,.58);
+  cursor:pointer; position:absolute; z-index:3;
+  transition:box-shadow .12s ease,border-color .12s ease;
+}
+.viq-v3-marker:hover,.viq-v3-marker:focus-visible {
+  box-shadow:0 0 0 4px rgba(80,197,255,.52),0 3px 12px rgba(0,0,0,.6);
+  outline:2px solid #071728; outline-offset:3px; z-index:11;
+}
+.viq-v3-marker:active {border-color:#172339 !important}
+.viq-v3-popup .maplibregl-popup-content {
+  background:#0f2037 !important; color:#f5f9ff !important;
+  border:1px solid #47658a; border-radius:15px;
+  padding:0 !important; overflow:hidden;
+  box-shadow:0 14px 44px rgba(0,0,0,.46);
+}
+.viq-v3-popup.maplibregl-popup {max-width:370px !important}
+.viq-v3-popup .maplibregl-popup-close-button {
+  color:#fff !important; font-size:23px; font-weight:700;
+  width:34px; height:34px; border-radius:0 14px 0 10px;
+  background:rgba(255,255,255,.10) !important; padding:0;
+}
+.viq-v3-popup .maplibregl-popup-close-button:hover {background:rgba(255,255,255,.24) !important}
+.viq-v3-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {border-top-color:#0f2037}
+.viq-v3-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip {border-bottom-color:#0f2037}
+.viq-v3-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {border-right-color:#0f2037}
+.viq-v3-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {border-left-color:#0f2037}
+.viq-v3-info {width:min(340px,calc(100vw - 44px));font:13px/1.5 Inter,system-ui,sans-serif;color:#f1f7ff}
+.viq-v3-info-head {padding:16px 40px 12px 16px;background:linear-gradient(120deg,#18395d,#153047);border-bottom:1px solid #345575}
+.viq-v3-info-name {font-weight:850;font-size:19px;letter-spacing:-.3px}
+.viq-v3-info-sub {font-size:12px;color:#aed3ef;margin-top:3px}
+.viq-v3-info-grid {display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:13px 14px 7px}
+.viq-v3-info-metric {padding:10px;background:#1a314e;border:1px solid #2d4a6a;border-radius:9px}
+.viq-v3-info-metric .k {display:block;color:#aac4db;font-size:11px;line-height:1.3}
+.viq-v3-info-metric .v {display:block;color:#fff;font-size:17px;font-weight:780;margin-top:5px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.viq-v3-info-row {padding:6px 16px;display:flex;justify-content:space-between;gap:14px;font-size:12px}
+.viq-v3-info-row .k {color:#a8c1d6;flex:0 0 auto}
+.viq-v3-info-row .v {color:#f6fbff;text-align:right;overflow-wrap:anywhere}
+.viq-v3-info-foot {padding:10px 16px 14px;margin-top:6px;border-top:1px solid #2d4560;color:#99b6ce;font-size:11px}
+@media(max-width:560px){.viq-v3-info {width:min(310px,calc(100vw - 48px))}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">VIQ-FULL · HISTORICAL ANALYTICS</div>
+    <h1>Big Data · Probe Explorer</h1>
+    <p>Trực quan hóa các vị trí probe đã quan sát trong 24 giờ, toàn bộ measurement và 5 quốc gia. <a href="/">← Quay lại Dashboard</a></p>
+  </header>
+  <main>
+    <form class="toolbar" id="filters">
+      <label>Quốc gia
+        <select id="country">
+          <option value="ALL">Tất cả · 5 quốc gia</option>
+          <option value="VN">Vietnam — VN</option>
+          <option value="DE">Germany — DE</option>
+          <option value="SG">Singapore — SG</option>
+          <option value="JP">Japan — JP</option>
+          <option value="US">United States — US</option>
+        </select>
+      </label>
+      <label>Measurement
+        <select id="measurement">
+          <option value="">Tất cả measurements</option>
+          <option value="86206926">86206926</option>
+          <option value="176906978">176906978</option>
+          <option value="177401210">177401210</option>
+          <option value="177401244">177401244</option>
+          <option value="177421171">177421171</option>
+        </select>
+      </label>
+      <label>Bắt đầu (UTC)<input type="datetime-local" id="start" value="2026-10-18T13:00" /></label>
+      <label>Kết thúc (UTC, exclusive)<input type="datetime-local" id="stop" value="2026-10-19T13:00" /></label>
+      <button type="submit">Cập nhật dữ liệu</button>
+    </form>
+
+    <div class="cards">
+      <div class="card"><div class="label">Probe có vị trí</div><strong id="probeCount">—</strong></div>
+      <div class="card"><div class="label">Bản ghi Gold theo giờ</div><strong id="observationCount">—</strong></div>
+      <div class="card"><div class="label">Mẫu đo tổng cộng</div><strong id="sampleCount">—</strong></div>
+      <div class="card"><div class="label">Measurement</div><strong id="measurementCount">—</strong></div>
+      <div class="card"><div class="label">Quốc gia · Số giờ</div><strong id="countryHourCount">—</strong></div>
+    </div>
+
+    <div class="panel">
+      <div class="paneltop">
+        <h2>Global Probe Network Map</h2>
+        
+      </div>
+      <div id="status">Đang tải dữ liệu...</div>
+      <div id="map"></div>
+      <div class="legend">
+        <span><span class="dot" style="background:#41b6ff"></span>VN</span>
+        <span><span class="dot" style="background:#e49aff"></span>DE</span>
+        <span><span class="dot" style="background:#37dfb5"></span>SG</span>
+        <span><span class="dot" style="background:#ffbd60"></span>JP</span>
+        <span><span class="dot" style="background:#fc728a"></span>US</span>
+        <span>M&#7895;i ch&#7845;m l&#224; m&#7897;t probe ri&#234;ng; nh&#7845;p &#273;&#7875; xem chi ti&#7871;t</span>
+      </div>
+    </div>
+    <p class="foot">Nguồn: ClickHouse Gold lịch sử · Số probe khác số bản ghi đo · Vị trí probe có thể nằm ngoài quốc gia đã lọc · Không phải giám sát realtime.</p>
+  </main>
+
+  <script type="module">
+// VIQ-PROBE-EXPLORER-UX-V3
+// One native MapLibre Marker per valid API (country_code, probe_id).
+// No clustering, no pixel-position polling and no geolocation jitter.
+const $ = id => document.getElementById(id);
+const palette = {VN:'#41b6ff',DE:'#e49aff',SG:'#37dfb5',JP:'#ffbd60',US:'#fc728a'};
+const fmt = n => Number(n ?? 0).toLocaleString('vi-VN');
+const formatValue = (v,digits=2) =>
+  v===null || v===undefined || v==='' || !Number.isFinite(Number(v))
+    ? '\u2014' : Number(v).toLocaleString('vi-VN',{maximumFractionDigits:digits});
+let map = null;
+let maplibregl = null;
+let mapReady = false;
+let points = [];
+let currentSummary = null;
+let currentMarkers = [];
+let activePopup = null;
+let requestController = null;
+
+function statusMessage(message,error=false){
+  $('status').textContent=message;
+  $('status').classList.toggle('error',error);
+}
+function summaryMessage(){
+  if(!currentSummary)return '\u0110ang t\u1ea3i d\u1eef li\u1ec7u...';
+  return `${fmt(currentSummary.returned_locations)} v\u1ecb tr\u00ed probe \u00b7 ${fmt(currentSummary.quality_observations)} b\u1ea3n ghi Gold \u00b7 ${currentSummary.countries} qu\u1ed1c gia \u00b7 ${currentSummary.hours} gi\u1edd`;
+}
+function updateCards(s){
+  $('probeCount').textContent=fmt(s.returned_locations);
+  $('observationCount').textContent=fmt(s.quality_observations);
+  $('sampleCount').textContent=fmt(s.raw_measurement_samples);
+  $('measurementCount').textContent=fmt(s.measurements);
+  $('countryHourCount').textContent=`${s.countries} \u00b7 ${s.hours}`;
+}
+function validCoordinate(p){
+  if(p.latitude===null||p.latitude===undefined||p.longitude===null||p.longitude===undefined)return false;
+  const lat=Number(p.latitude),lon=Number(p.longitude);
+  return Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180;
+}
+function textElement(tag,className,value){
+  const el=document.createElement(tag);
+  if(className)el.className=className;
+  el.textContent=String(value);
+  return el;
+}
+function detailMetric(label,value){
+  const wrap=textElement('div','viq-v3-info-metric','');
+  wrap.append(textElement('span','k',label),textElement('strong','v',value));
+  return wrap;
+}
+function detailRow(label,value){
+  const wrap=textElement('div','viq-v3-info-row','');
+  wrap.append(textElement('span','k',label),textElement('span','v',value));
+  return wrap;
+}
+function popupContent(p){
+  const card=textElement('div','viq-v3-info','');
+  const head=textElement('div','viq-v3-info-head','');
+  head.append(textElement('div','viq-v3-info-name',`Probe #${p.probe_id}`),
+              textElement('div','viq-v3-info-sub',`Qu\u1ed1c gia: ${p.country_code} \u00b7 D\u1eef li\u1ec7u l\u1ecbch s\u1eed`));
+  card.append(head);
+  const metrics=textElement('div','viq-v3-info-grid','');
+  metrics.append(
+    detailMetric('RTT trung b\u00ecnh',`${formatValue(p.average_rtt_ms)} ms`),
+    detailMetric('M\u1ea5t g\u00f3i trung b\u00ecnh',`${formatValue(p.average_packet_loss_pct,3)}%`),
+    detailMetric('B\u1ea3n ghi Gold',fmt(p.observations)),
+    detailMetric('M\u1eabu \u0111o',fmt(p.raw_samples))
+  );
+  card.append(metrics);
+  card.append(detailRow('Measurement',formatValue(p.measurement_count,0)));
+  card.append(detailRow('V\u0129 \u0111\u1ed9',Number(p.latitude).toFixed(5)));
+  card.append(detailRow('Kinh \u0111\u1ed9',Number(p.longitude).toFixed(5)));
+  const last = p.last_observed_utc===null||p.last_observed_utc===undefined||p.last_observed_utc===''
+    ? '\u2014' : `${String(p.last_observed_utc).replace('T',' ').replace(/Z$/,'')} UTC`;
+  card.append(detailRow('Quan s\u00e1t cu\u1ed1i',last));
+  card.append(textElement('div','viq-v3-info-foot',
+    'Ngu\u1ed3n: ClickHouse Gold l\u1ecbch s\u1eed. Gi\u00e1 tr\u1ecb t\u1ed5ng h\u1ee3p trong kho\u1ea3ng th\u1eddi gian \u0111ang l\u1ecdc; kh\u00f4ng ph\u1ea3i gi\u00e1m s\u00e1t tr\u1ef1c ti\u1ebfp.'));
+  return card;
+}
+function clearMarkers(){
+  for(const marker of currentMarkers)marker.remove();
+  currentMarkers=[];
+  activePopup=null;
+}
+function renderMarkers(fit=false){
+  if(!mapReady||!maplibregl||!map)return;
+  clearMarkers();
+  for(const p of points){
+    const dot=document.createElement('button');
+    dot.type='button';dot.className='viq-v3-marker';
+    dot.style.setProperty('--viq-probe-color',palette[p.country_code]||'#d7e5f5');
+    dot.title=`Probe ${p.probe_id} (${p.country_code}) \u2014 Nh\u1ea5n \u0111\u1ec3 xem chi ti\u1ebft`;
+    dot.setAttribute('aria-label',dot.title);
+    const popup=new maplibregl.Popup({
+      className:'viq-v3-popup',closeButton:true,closeOnClick:false,
+      closeOnMove:false,maxWidth:'370px',offset:16
+    }).setDOMContent(popupContent(p));
+    popup.on('open',()=>{
+      if(activePopup && activePopup!==popup) activePopup.remove();
+      activePopup=popup;
+    });
+    popup.on('close',()=>{if(activePopup===popup)activePopup=null});
+    const marker=new maplibregl.Marker({element:dot,anchor:'center',draggable:false})
+      .setLngLat([Number(p.longitude),Number(p.latitude)])
+      .setPopup(popup)
+      .addTo(map);
+    if(typeof marker.setSubpixelPositioning==='function')marker.setSubpixelPositioning(true);
+    currentMarkers.push(marker);
+  }
+  if(fit && points.length){
+    const bounds=new maplibregl.LngLatBounds();
+    for(const p of points)bounds.extend([Number(p.longitude),Number(p.latitude)]);
+    if(points.length===1){map.easeTo({center:[Number(points[0].longitude),Number(points[0].latitude)],zoom:7,duration:350});}
+    else map.fitBounds(bounds,{padding:70,maxZoom:8,duration:350});
+  }
+  statusMessage(`${summaryMessage()} \u00b7 ${fmt(currentMarkers.length)} marker ri\u00eang l\u1ebb (kh\u00f4ng gom c\u1ee5m)`);
+}
+async function initializeMap(){
+  try{
+    const mod=await import('maplibre-gl');
+    maplibregl=mod.default??mod;
+    if(typeof maplibregl.Map!=='function'||typeof maplibregl.Marker!=='function')
+      throw new Error('MapLibre Marker unavailable');
+    try{await import('maplibre-gl/dist/maplibre-gl.css')}catch(_){/* app CSS remains */}
+    map=new maplibregl.Map({
+      container:'map',center:[20,12],zoom:1.65,attributionControl:true,
+      style:{version:8,
+        sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize:256,attribution:'\u00a9 OpenStreetMap contributors'}},
+        layers:[{id:'background',type:'background',paint:{'background-color':'#c1dbe7'}},
+                {id:'osm',type:'raster',source:'osm'}]}
+    });
+    map.addControl(new maplibregl.NavigationControl(),'top-right');
+    map.on('load',()=>{mapReady=true;renderMarkers(true)});
+    map.on('error',e=>{console.warn('VIQ_MAP_TILE_WARNING',e?.error?.message||e)});
+  }catch(err){
+    statusMessage(`Kh\u00f4ng kh\u1edfi t\u1ea1o \u0111\u01b0\u1ee3c b\u1ea3n \u0111\u1ed3: ${err?.message||String(err)}`,true);
+    const holder=$('map');
+    holder.textContent='B\u1ea3n \u0111\u1ed3 kh\u00f4ng kh\u1ea3 d\u1ee5ng. C\u00e1c s\u1ed1 li\u1ec7u t\u1eeb API v\u1eabn c\u00f3 th\u1ec3 xem \u1edf ph\u00eda tr\u00ean.';
+    holder.style.padding='24px';
+  }
+}
+async function loadData(){
+  if(requestController)requestController.abort();
+  const controller=new AbortController();requestController=controller;
+  const timeout=setTimeout(()=>controller.abort(),22000);
+  const start=$('start').value,stop=$('stop').value;
+  if(!start||!stop){clearTimeout(timeout);statusMessage('Thi\u1ebfu kho\u1ea3ng th\u1eddi gian UTC.',true);return;}
+  const params=new URLSearchParams({country:$('country').value,start:`${start}:00Z`,stop:`${stop}:00Z`});
+  if($('measurement').value)params.set('measurement_id',$('measurement').value);
+  statusMessage('\u0110ang t\u1ea3i d\u1eef li\u1ec7u probe t\u1eeb API...');
+  try{
+    const resp=await fetch(`http://127.0.0.1:8000/bigdata/probes?${params.toString()}`,
+      {signal:controller.signal,cache:'no-store'});
+    const data=await resp.json();
+    if(!resp.ok)throw new Error(typeof data.detail==='string'?data.detail:`HTTP ${resp.status}`);
+    if(!data.summary||!Array.isArray(data.points))throw new Error('Invalid probe API format');
+    if(requestController!==controller)return;
+    points=data.points.filter(validCoordinate);
+    currentSummary=data.summary;
+    updateCards(data.summary);
+    if(mapReady)renderMarkers(true);
+    else statusMessage(summaryMessage()+' \u00b7 \u0110ang kh\u1edfi t\u1ea1o b\u1ea3n \u0111\u1ed3...');
+    if(points.length===0)statusMessage(summaryMessage()+' \u00b7 Kh\u00f4ng c\u00f3 t\u1ecda \u0111\u1ed9 h\u1ee3p l\u1ec7');
+  }catch(err){
+    if(requestController!==controller)return;
+    statusMessage('Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c probe: '+(err?.message||String(err)),true);
+  }finally{clearTimeout(timeout)}
+}
+$('filters').addEventListener('submit',e=>{e.preventDefault();void loadData()});
+void initializeMap();
+void loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+FROM apache/airflow:3.3.2-python3.10
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless curl \
+    && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /opt/e2e/jars /opt/e2e/scratch/s3a /opt/project \
+    && chown -R airflow:root /opt/e2e /opt/project
+RUN curl -fsSL -o /opt/e2e/jars/hadoop-aws-3.3.4.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
+    && curl -fsSL -o /opt/e2e/jars/aws-java-sdk-bundle-1.12.262.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
+USER airflow
+COPY requirements-e2e.txt /opt/e2e/requirements-e2e.txt
+RUN pip install --no-cache-dir "apache-airflow==3.3.2" \
+    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.10.txt \
+    && pip install --no-cache-dir -r /opt/e2e/requirements-e2e.txt \
+    && pip check && test "$(airflow version)" = "3.3.2"
+ENV PYTHONPATH=/opt/project \
+    PYTHONUNBUFFERED=1 \
+    PATH=/home/airflow/.local/lib/python3.10/site-packages/pyspark/bin:${PATH} \
+    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
+WORKDIR /opt/project
+# Source is mounted explicitly read-only by Compose; never COPY the project's .env.
+ENTRYPOINT ["python", "/opt/project/scripts/e2e_bootstrap.py"]
+# Default is help, not a running service. No build/start is authorized in Gate B.
+CMD ["--help"]

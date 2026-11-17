@@ -1,0 +1,6 @@
+# Optional verification / signed registry sandbox branches only.
+# Resolve and lock these for your deployment; no packages are installed by the export.
+-r requirements-dev.txt
+pyarrow==18.1.0
+psycopg[binary]>=3,<4
+cryptography

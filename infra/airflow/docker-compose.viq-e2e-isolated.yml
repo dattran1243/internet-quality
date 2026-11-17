@@ -1,0 +1,471 @@
+name: ${VIQ_E2E_PROJECT:?exact project from manifest required}
+x-project-source-mounts:
+- &id001
+  type: bind
+  source: ${VIQ_E2E_ROOT}/processing
+  target: /opt/project/processing
+  read_only: true
+  bind:
+    create_host_path: false
+- &id002
+  type: bind
+  source: ${VIQ_E2E_ROOT}/scripts
+  target: /opt/project/scripts
+  read_only: true
+  bind:
+    create_host_path: false
+- &id003
+  type: bind
+  source: ${VIQ_E2E_ROOT}/configs
+  target: /opt/project/configs
+  read_only: true
+  bind:
+    create_host_path: false
+- &id004
+  type: bind
+  source: ${VIQ_E2E_ROOT}/config
+  target: /opt/project/config
+  read_only: true
+  bind:
+    create_host_path: false
+- &id005
+  type: bind
+  source: ${VIQ_E2E_ROOT}/messaging
+  target: /opt/project/messaging
+  read_only: true
+  bind:
+    create_host_path: false
+- &id006
+  type: bind
+  source: ${VIQ_E2E_ROOT}/ingestion
+  target: /opt/project/ingestion
+  read_only: true
+  bind:
+    create_host_path: false
+- &id007
+  type: bind
+  source: ${VIQ_E2E_ROOT}/storage
+  target: /opt/project/storage
+  read_only: true
+  bind:
+    create_host_path: false
+- &id008
+  type: bind
+  source: ${VIQ_E2E_ROOT}/api
+  target: /opt/project/api
+  read_only: true
+  bind:
+    create_host_path: false
+- &id009
+  type: bind
+  source: ${VIQ_E2E_ROOT}/infra/airflow/e2e_dags
+  target: /opt/project/infra/airflow/e2e_dags
+  read_only: true
+  bind:
+    create_host_path: false
+- &id010
+  type: bind
+  source: ${VIQ_E2E_MANIFEST_FILE}
+  target: /opt/e2e/manifest.json
+  read_only: true
+  bind:
+    create_host_path: false
+- &id011
+  type: bind
+  source: ${VIQ_E2E_APPROVAL_FILE}
+  target: /opt/e2e/approval.json
+  read_only: true
+  bind:
+    create_host_path: false
+services:
+  e2e-airflow-init:
+    image: ${VIQ_E2E_IMAGE:?explicit image required}
+    restart: 'no'
+    profiles:
+    - e2e-manual
+    environment: &id012
+      PYTHONPATH: /opt/project
+      PROJECT_ROOT: /opt/project
+      VIQ_E2E_MANIFEST: /opt/e2e/manifest.json
+      VIQ_E2E_APPROVAL: /opt/e2e/approval.json
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/e2e_dags
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__PARALLELISM: '1'
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: '1'
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: '1'
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://e2e-airflow-api:8080/execution/
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: e2eadmin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: 'false'
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /tmp/viq-simple-auth/passwords.json
+      AIRFLOW__DAG_PROCESSOR__PARSING_PROCESSES: '1'
+      KAFKA_BOOTSTRAP_SERVERS: internet-quality-kafka:39092
+      RIPE_ATLAS_PING_TOPIC: ${VIQ_E2E_TOPIC:?required}
+      RIPE_ATLAS_PING_DLQ_TOPIC: ${VIQ_E2E_DLQ:?required}
+      BRONZE_RIPE_ATLAS_CONSUMER_GROUP: ${VIQ_E2E_GROUP:?required}
+      MINIO_ENDPOINT: http://vietnam-internet-quality-minio-1:9000
+      MINIO_BUCKET: ${VIQ_E2E_BUCKET:?required}
+      SPARK_MASTER: local[1]
+      MONITORING_COUNTRIES: DE
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NUMEXPR_NUM_THREADS: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    volumes:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - type: bind
+      source: ${VIQ_E2E_ROOT}/infra/airflow/e2e_dags
+      target: /opt/airflow/e2e_dags
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: volume
+      source: home_init
+      target: /opt/airflow
+    - type: bind
+      source: ${VIQ_E2E_CONTROL_DIR}
+      target: /opt/e2e/control
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/bootstrap
+      target: /opt/e2e/bootstrap
+      read_only: false
+      bind:
+        create_host_path: false
+    stop_grace_period: 30s
+    init: true
+    pids_limit: 256
+    cpus: 0.5
+    container_name: ${VIQ_E2E_PROJECT}-airflow-init
+    command:
+    - init
+    mem_limit: 512m
+    networks:
+    - e2e
+    - metadata
+    - kafka
+    - minio
+    - clickhouse
+    secrets:
+    - source: worker_runtime
+      target: runtime.json
+    - source: airflow_passwords
+      target: airflow_passwords.json
+    read_only: true
+    user: '50000:0'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+  e2e-airflow-api:
+    image: ${VIQ_E2E_IMAGE:?explicit image required}
+    restart: 'no'
+    profiles:
+    - e2e-manual
+    environment: *id012
+    volumes:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/services/api
+      target: /opt/e2e/service-logs
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_ROOT}/infra/airflow/e2e_dags
+      target: /opt/airflow/e2e_dags
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: volume
+      source: home_api
+      target: /opt/airflow
+    stop_grace_period: 30s
+    init: true
+    pids_limit: 256
+    cpus: 0.5
+    container_name: ${VIQ_E2E_PROJECT}-airflow-api
+    command:
+    - api
+    mem_limit: 512m
+    ports:
+    - 127.0.0.1:18080:8080
+    networks:
+    - e2e
+    - metadata
+    secrets:
+    - source: control_runtime
+      target: runtime.json
+    - source: airflow_passwords
+      target: airflow_passwords.json
+    read_only: true
+    user: '50000:0'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+  e2e-airflow-dag-processor:
+    image: ${VIQ_E2E_IMAGE:?explicit image required}
+    restart: 'no'
+    profiles:
+    - e2e-manual
+    environment: *id012
+    volumes:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/services/dag-processor
+      target: /opt/e2e/service-logs
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_ROOT}/infra/airflow/e2e_dags
+      target: /opt/airflow/e2e_dags
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: volume
+      source: home_dag_processor
+      target: /opt/airflow
+    stop_grace_period: 30s
+    init: true
+    pids_limit: 256
+    cpus: 0.5
+    container_name: ${VIQ_E2E_PROJECT}-airflow-dag-processor
+    command:
+    - dag-processor
+    mem_limit: 384m
+    networks:
+    - e2e
+    - metadata
+    secrets:
+    - source: control_runtime
+      target: runtime.json
+    - source: airflow_passwords
+      target: airflow_passwords.json
+    read_only: true
+    user: '50000:0'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+  e2e-airflow-scheduler:
+    image: ${VIQ_E2E_IMAGE:?explicit image required}
+    restart: 'no'
+    profiles:
+    - e2e-manual
+    environment: *id012
+    volumes:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/services/scheduler
+      target: /opt/e2e/service-logs
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_ROOT}/infra/airflow/e2e_dags
+      target: /opt/airflow/e2e_dags
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: volume
+      source: home_scheduler
+      target: /opt/airflow
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/pipeline
+      target: /opt/e2e/evidence
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/bootstrap/provision.json
+      target: /opt/e2e/evidence/provision.json
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_RAW_FILE}
+      target: /opt/e2e/input/raw.jsonl
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${VIQ_E2E_ARCHIVE_FILE}
+      target: /opt/e2e/input/probes.json.bz2
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: volume
+      source: spark_scratch
+      target: /opt/e2e/scratch
+    stop_grace_period: 30s
+    init: true
+    pids_limit: 768
+    cpus: 1
+    container_name: ${VIQ_E2E_PROJECT}-airflow-scheduler
+    command:
+    - scheduler
+    mem_limit: 2560m
+    networks:
+    - e2e
+    - metadata
+    - kafka
+    - minio
+    - clickhouse
+    secrets:
+    - source: worker_runtime
+      target: runtime.json
+    - source: airflow_passwords
+      target: airflow_passwords.json
+    read_only: true
+    user: '50000:0'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+  e2e-api:
+    image: ${VIQ_E2E_IMAGE:?explicit image required}
+    restart: 'no'
+    profiles:
+    - e2e-manual
+    environment:
+      VIQ_E2E_MANIFEST: /opt/e2e/manifest.json
+      VIQ_E2E_APPROVAL: /opt/e2e/approval.json
+      PYTHONPATH: /opt/project
+      MONITORING_COUNTRIES: DE
+      CLICKHOUSE_HOST: viq-g1-clickhouse
+      CLICKHOUSE_HTTP_PORT: '8123'
+      CLICKHOUSE_DATABASE: ${VIQ_E2E_DATABASE:?required}
+      CLICKHOUSE_USER: ${VIQ_E2E_CH_API_USER:?required}
+      PYTHONDONTWRITEBYTECODE: '1'
+    volumes:
+    - *id001
+    - *id002
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - *id010
+    - *id011
+    - type: bind
+      source: ${VIQ_E2E_RUNTIME_DIR}/services/fastapi
+      target: /opt/e2e/service-logs
+      read_only: false
+      bind:
+        create_host_path: false
+    stop_grace_period: 30s
+    init: true
+    pids_limit: 256
+    cpus: 0.5
+    container_name: ${VIQ_E2E_PROJECT}-api
+    command:
+    - fastapi
+    mem_limit: 256m
+    ports:
+    - 127.0.0.1:18000:8000
+    networks:
+    - e2e
+    - clickhouse
+    secrets:
+    - source: api_runtime
+      target: runtime.json
+    read_only: true
+    user: '50000:0'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+volumes:
+  home_init:
+    name: ${VIQ_E2E_PROJECT}-init-home
+  home_api:
+    name: ${VIQ_E2E_PROJECT}-api-home
+  home_dag_processor:
+    name: ${VIQ_E2E_PROJECT}-dag-processor-home
+  home_scheduler:
+    name: ${VIQ_E2E_PROJECT}-scheduler-home
+  spark_scratch:
+    name: ${VIQ_E2E_PROJECT}-spark-scratch
+networks:
+  e2e:
+    name: ${VIQ_E2E_PROJECT}-network
+  metadata:
+    external: true
+    name: airflow_default
+  kafka:
+    external: true
+    name: kafka_default
+  minio:
+    external: true
+    name: vietnam-internet-quality_default
+  clickhouse:
+    external: true
+    name: viq-g1-sandbox-net
+secrets:
+  worker_runtime:
+    file: ${VIQ_E2E_SECRETS_DIR:?required}/worker.json
+  control_runtime:
+    file: ${VIQ_E2E_SECRETS_DIR}/control.json
+  api_runtime:
+    file: ${VIQ_E2E_SECRETS_DIR}/api.json
+  airflow_passwords:
+    file: ${VIQ_E2E_SECRETS_DIR}/airflow_passwords.json

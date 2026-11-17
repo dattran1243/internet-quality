@@ -1,0 +1,3 @@
+# This image installs dependencies only; project source is mounted read-only.
+**
+!Dockerfile
